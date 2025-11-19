@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoHedge - AI-Powered Hedge Fund Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+        }
+        .agent-card {
+            border-left: 4px solid #667eea;
+            margin-bottom: 1rem;
+        }
+        .metric-card {
+            text-align: center;
+            padding: 1rem;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .status-completed { background-color: #d1fae5; color: #065f46; }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-failed { background-color: #fee2e2; color: #991b1b; }
+        .sidebar {
+            width: 250px;
+            background: #1f2937;
+            min-height: 100vh;
+            color: white;
+        }
+        .nav-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .nav-item:hover {
+            background: #374151;
+        }
+        .nav-item.active {
+            background: #4f46e5;
+        }
+        .hidden {
+            display: none;
+        }
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #1f2937;
+        }
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-top: 0.25rem;
+        }
+        .label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Page -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center gradient-bg">
+        <div class="card max-w-md w-full">
+            <h1 class="text-3xl font-bold text-center mb-6">AutoHedge</h1>
+            <p class="text-gray-600 text-center mb-6">AI-Powered Hedge Fund Management</p>
+
+            <div id="loginForm">
+                <h2 class="text-xl font-semibold mb-4">Login</h2>
+                <div class="mb-4">
+                    <label class="label">API Key</label>
+                    <input type="text" id="apiKeyInput" class="input-field" placeholder="Enter your API key">
+                </div>
+                <button onclick="login()" class="btn btn-primary w-full mb-3">Login</button>
+                <button onclick="showRegister()" class="btn btn-secondary w-full">Create New Account</button>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <h2 class="text-xl font-semibold mb-4">Create Account</h2>
+                <div class="mb-4">
+                    <label class="label">Username</label>
+                    <input type="text" id="username" class="input-field" placeholder="johndoe">
+                </div>
+                <div class="mb-4">
+                    <label class="label">Email</label>
+                    <input type="email" id="email" class="input-field" placeholder="john@example.com">
+                </div>
+                <div class="mb-4">
+                    <label class="label">Fund Name</label>
+                    <input type="text" id="fundName" class="input-field" placeholder="My Hedge Fund">
+                </div>
+                <div class="mb-4">
+                    <label class="label">Fund Description</label>
+                    <textarea id="fundDesc" class="input-field" rows="3" placeholder="Brief description of your fund"></textarea>
+                </div>
+                <button onclick="register()" class="btn btn-primary w-full mb-3">Create Account</button>
+                <button onclick="showLogin()" class="btn btn-secondary w-full">Back to Login</button>
+            </div>
+
+            <div id="apiKeyDisplay" class="hidden">
+                <h2 class="text-xl font-semibold mb-4 text-green-600">Account Created!</h2>
+                <p class="mb-2">Your API Key:</p>
+                <div class="bg-gray-100 p-3 rounded mb-4 font-mono text-sm break-all" id="generatedApiKey"></div>
+                <p class="text-sm text-gray-600 mb-4">Save this API key securely. You'll need it to access your account.</p>
+                <button onclick="loginWithNewKey()" class="btn btn-primary w-full">Continue to Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden flex">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="p-6 border-b border-gray-700">
+                <h1 class="text-xl font-bold">AutoHedge</h1>
+                <p class="text-sm text-gray-400 mt-1" id="fundNameDisplay"></p>
+            </div>
+            <nav class="p-4">
+                <div class="nav-item active" onclick="showPage('dashboard')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    Dashboard
+                </div>
+                <div class="nav-item" onclick="showPage('newTrade')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    New Trade
+                </div>
+                <div class="nav-item" onclick="showPage('trades')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Trade History
+                </div>
+                <div class="nav-item" onclick="showPage('analytics')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    Analytics
+                </div>
+            </nav>
+            <div class="p-4 border-t border-gray-700 absolute bottom-0 w-full">
+                <button onclick="logout()" class="btn btn-secondary w-full text-sm">Logout</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8">
+            <!-- Dashboard Page -->
+            <div id="dashboardPage" class="page">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Dashboard</h2>
+                    <p class="text-gray-600">Welcome back! Here's your trading overview.</p>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Total Trades</div>
+                        <div class="text-3xl font-bold text-indigo-600">47</div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Success Rate</div>
+                        <div class="text-3xl font-bold text-green-600">68.5%</div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Avg Return</div>
+                        <div class="text-3xl font-bold text-blue-600">+12.3%</div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Total Allocation</div>
+                        <div class="text-3xl font-bold text-purple-600">$2.4M</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="card">
+                        <h3 class="text-lg font-semibold mb-4">Portfolio Allocation</h3>
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-lg font-semibold mb-4">Performance Over Time</h3>
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Trades -->
+                <div class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Recent Trades</h3>
+                        <button onclick="showPage('trades')" class="text-indigo-600 text-sm hover:underline">View All</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Date</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Stocks</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Strategy</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Status</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Return</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTradesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Trade Page -->
+            <div id="newTradePage" class="page hidden">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Create New Trade</h2>
+                    <p class="text-gray-600">Submit a new trading task for AI analysis</p>
+                </div>
+
+                <div class="card max-w-3xl">
+                    <form onsubmit="submitTrade(event)">
+                        <div class="mb-6">
+                            <label class="label">Stock Symbols</label>
+                            <input type="text" id="stockSymbols" class="input-field" placeholder="AAPL, MSFT, GOOGL" required>
+                            <p class="text-sm text-gray-500 mt-1">Comma-separated list of stock symbols</p>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Trading Task / Strategy</label>
+                            <textarea id="tradingTask" class="input-field" rows="4" placeholder="Describe your trading strategy or objective..." required></textarea>
+                            <p class="text-sm text-gray-500 mt-1">Describe what you want the AI agents to analyze</p>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Capital Allocation ($)</label>
+                            <input type="number" id="allocation" class="input-field" value="10000" min="1000" step="1000" required>
+                            <div class="flex justify-between text-sm text-gray-500 mt-1">
+                                <span>$1,000</span>
+                                <span>$1,000,000+</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Strategy Type</label>
+                            <select id="strategyType" class="input-field" required>
+                                <option value="swing_trading">Swing Trading</option>
+                                <option value="day_trading">Day Trading</option>
+                                <option value="position_trading">Position Trading</option>
+                                <option value="algorithmic_trading">Algorithmic Trading</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Risk Level: <span id="riskLevelDisplay">5</span></label>
+                            <input type="range" id="riskLevel" class="w-full" min="1" max="10" value="5" oninput="document.getElementById('riskLevelDisplay').textContent = this.value">
+                            <div class="flex justify-between text-sm text-gray-500 mt-1">
+                                <span>Conservative (1)</span>
+                                <span>Aggressive (10)</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <button type="submit" class="btn btn-primary flex-1">Submit for Analysis</button>
+                            <button type="button" onclick="resetTradeForm()" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Trades Page -->
+            <div id="tradesPage" class="page hidden">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Trade History</h2>
+                    <p class="text-gray-600">View all your trading analyses</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="card mb-6">
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="label">Filter by Status</label>
+                            <select id="statusFilter" class="input-field" onchange="filterTrades()">
+                                <option value="all">All Statuses</option>
+                                <option value="COMPLETED">Completed</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="FAILED">Failed</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="label">Search Stocks</label>
+                            <input type="text" id="stockSearch" class="input-field" placeholder="Search by stock symbol..." onkeyup="filterTrades()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trades Table -->
+                <div class="card">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">ID</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Date</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Stocks</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Strategy</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Allocation</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Status</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Return</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allTradesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Page -->
+            <div id="analyticsPage" class="page hidden">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Analytics</h2>
+                    <p class="text-gray-600">Detailed performance metrics and insights</p>
+                </div>
+
+                <!-- Time Period Selector -->
+                <div class="card mb-6">
+                    <label class="label">Time Period</label>
+                    <select id="analyticsPeriod" class="input-field max-w-xs" onchange="updateAnalytics()">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                        <option value="365">Last Year</option>
+                    </select>
+                </div>
+
+                <!-- Detailed Metrics -->
+                <div class="grid grid-cols-3 gap-6 mb-8">
+                    <div class="card">
+                        <h3 class="text-sm text-gray-500 mb-2">Total Return</h3>
+                        <div class="text-3xl font-bold text-green-600">+$294,500</div>
+                        <div class="text-sm text-gray-500 mt-1">+12.3% overall</div>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm text-gray-500 mb-2">Sharpe Ratio</h3>
+                        <div class="text-3xl font-bold text-blue-600">1.84</div>
+                        <div class="text-sm text-gray-500 mt-1">Risk-adjusted return</div>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm text-gray-500 mb-2">Max Drawdown</h3>
+                        <div class="text-3xl font-bold text-red-600">-8.2%</div>
+                        <div class="text-sm text-gray-500 mt-1">Peak to trough</div>
+                    </div>
+                </div>
+
+                <!-- Top Performing Stocks -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-semibold mb-4">Top Performing Stocks</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">NVDA</div>
+                                <div class="text-sm text-gray-500">NVIDIA Corporation</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-green-600">+28.4%</div>
+                                <div class="text-sm text-gray-500">15 trades</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">MSFT</div>
+                                <div class="text-sm text-gray-500">Microsoft Corporation</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-green-600">+21.7%</div>
+                                <div class="text-sm text-gray-500">12 trades</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">AAPL</div>
+                                <div class="text-sm text-gray-500">Apple Inc.</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-green-600">+15.3%</div>
+                                <div class="text-sm text-gray-500">18 trades</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Performance -->
+                <div class="card">
+                    <h3 class="text-lg font-semibold mb-4">Strategy Performance</h3>
+                    <canvas id="strategyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Trade Detail Modal -->
+            <div id="tradeDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-8" onclick="closeTradeDetail(event)">
+                <div class="bg-white rounded-lg max-w-5xl w-full max-h-screen overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="p-6 border-b sticky top-0 bg-white">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h2 class="text-2xl font-bold">Trade Analysis</h2>
+                                <p class="text-gray-600 text-sm" id="modalTradeId"></p>
+                            </div>
+                            <button onclick="closeTradeDetail()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6" id="tradeDetailContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock Data
+        const mockTrades = [
+            {
+                id: "trade_001",
+                created_at: "2025-01-15T10:30:00Z",
+                stocks: ["AAPL", "MSFT"],
+                strategy_type: "swing_trading",
+                allocation: 50000,
+                status: "COMPLETED",
+                return: 8.5,
+                result: {
+                    director_thesis: "Strong bullish momentum in tech sector. Both AAPL and MSFT showing strong fundamentals with positive earnings outlook. Market conditions favorable for swing trading with low volatility.",
+                    quant_analysis: {
+                        technical_score: 0.82,
+                        volume_score: 0.75,
+                        trend_strength: 0.88,
+                        support_levels: [145.20, 142.50],
+                        resistance_levels: [152.30, 155.80],
+                        indicators: {
+                            RSI: 58.4,
+                            MACD: "Bullish crossover",
+                            Moving_Average: "Above 50-day MA"
+                        }
+                    },
+                    sentiment_analysis: {
+                        sentiment_score: 0.78,
+                        news_sentiment: "Positive",
+                        social_sentiment: 0.72,
+                        key_themes: ["AI innovation", "Cloud growth", "Strong earnings"]
+                    },
+                    risk_assessment: {
+                        risk_score: 0.35,
+                        position_size_recommendation: "70% of allocated capital",
+                        max_drawdown: 0.12,
+                        risk_factors: ["Market volatility", "Tech sector concentration"]
+                    },
+                    execution_order: {
+                        action: "BUY",
+                        entry_price: 148.50,
+                        target_price: 162.00,
+                        stop_loss: 143.00,
+                        order_type: "LIMIT",
+                        time_constraint: "Good for day"
+                    },
+                    final_decision: "EXECUTE - High confidence trade with favorable risk/reward ratio of 1:3.5. All agents in consensus for execution."
+                }
+            },
+            {
+                id: "trade_002",
+                created_at: "2025-01-14T14:20:00Z",
+                stocks: ["NVDA"],
+                strategy_type: "position_trading",
+                allocation: 75000,
+                status: "COMPLETED",
+                return: 15.2,
+                result: {
+                    director_thesis: "NVDA positioned for long-term growth in AI/ML market. Strong revenue growth and market dominance in GPU sector.",
+                    quant_analysis: {
+                        technical_score: 0.91,
+                        volume_score: 0.88,
+                        trend_strength: 0.95,
+                        support_levels: [485.00, 472.30],
+                        resistance_levels: [520.00, 545.00],
+                        indicators: {
+                            RSI: 62.1,
+                            MACD: "Strong bullish",
+                            Moving_Average: "Golden cross formed"
+                        }
+                    },
+                    sentiment_analysis: {
+                        sentiment_score: 0.92,
+                        news_sentiment: "Very Positive",
+                        social_sentiment: 0.89,
+                        key_themes: ["AI chip demand", "Data center growth", "Gaming recovery"]
+                    },
+                    risk_assessment: {
+                        risk_score: 0.45,
+                        position_size_recommendation: "60% of allocated capital",
+                        max_drawdown: 0.18,
+                        risk_factors: ["High valuation", "Market concentration", "Regulatory concerns"]
+                    },
+                    execution_order: {
+                        action: "BUY",
+                        entry_price: 492.00,
+                        target_price: 580.00,
+                        stop_loss: 465.00,
+                        order_type: "LIMIT",
+                        time_constraint: "Good till cancelled"
+                    },
+                    final_decision: "EXECUTE - Exceptional opportunity in AI sector leader. Long-term position with strong fundamentals."
+                }
+            },
+            {
+                id: "trade_003",
+                created_at: "2025-01-13T09:15:00Z",
+                stocks: ["TSLA"],
+                strategy_type: "day_trading",
+                allocation: 25000,
+                status: "COMPLETED",
+                return: -3.2,
+                result: {
+                    director_thesis: "High volatility day trade opportunity on TSLA. Technical setup shows potential for intraday swing.",
+                    quant_analysis: {
+                        technical_score: 0.65,
+                        volume_score: 0.82,
+                        trend_strength: 0.58,
+                        support_levels: [238.50, 235.00],
+                        resistance_levels: [245.00, 248.50],
+                        indicators: {
+                            RSI: 45.2,
+                            MACD: "Neutral",
+                            Moving_Average: "Consolidating"
+                        }
+                    },
+                    sentiment_analysis: {
+                        sentiment_score: 0.55,
+                        news_sentiment: "Mixed",
+                        social_sentiment: 0.62,
+                        key_themes: ["Production concerns", "Delivery numbers", "Competition"]
+                    },
+                    risk_assessment: {
+                        risk_score: 0.68,
+                        position_size_recommendation: "30% of allocated capital",
+                        max_drawdown: 0.25,
+                        risk_factors: ["High volatility", "News sensitivity", "Elon Musk factor"]
+                    },
+                    execution_order: {
+                        action: "BUY",
+                        entry_price: 241.50,
+                        target_price: 246.00,
+                        stop_loss: 239.00,
+                        order_type: "MARKET",
+                        time_constraint: "Intraday only"
+                    },
+                    final_decision: "EXECUTE WITH CAUTION - Moderate setup. Tight stops recommended. Exit before market close."
+                }
+            },
+            {
+                id: "trade_004",
+                created_at: "2025-01-12T11:45:00Z",
+                stocks: ["GOOGL", "META"],
+                strategy_type: "swing_trading",
+                allocation: 60000,
+                status: "COMPLETED",
+                return: 11.8,
+                result: {
+                    director_thesis: "Digital advertising rebound creating opportunities in GOOGL and META. Both showing recovery from 2024 lows.",
+                    quant_analysis: {
+                        technical_score: 0.79,
+                        volume_score: 0.71,
+                        trend_strength: 0.83,
+                        support_levels: [138.20, 135.50],
+                        resistance_levels: [145.00, 148.50],
+                        indicators: {
+                            RSI: 56.8,
+                            MACD: "Bullish momentum",
+                            Moving_Average: "Uptrend confirmed"
+                        }
+                    },
+                    sentiment_analysis: {
+                        sentiment_score: 0.74,
+                        news_sentiment: "Positive",
+                        social_sentiment: 0.68,
+                        key_themes: ["Ad revenue growth", "AI integration", "Cost cutting success"]
+                    },
+                    risk_assessment: {
+                        risk_score: 0.42,
+                        position_size_recommendation: "65% of allocated capital",
+                        max_drawdown: 0.15,
+                        risk_factors: ["Regulatory headwinds", "Privacy concerns", "Market competition"]
+                    },
+                    execution_order: {
+                        action: "BUY",
+                        entry_price: 140.50,
+                        target_price: 155.00,
+                        stop_loss: 136.00,
+                        order_type: "LIMIT",
+                        time_constraint: "Good for week"
+                    },
+                    final_decision: "EXECUTE - Strong setup in digital ad space. Diversified entry across two leaders reduces single-stock risk."
+                }
+            },
+            {
+                id: "trade_005",
+                created_at: "2025-01-11T08:30:00Z",
+                stocks: ["AMD"],
+                strategy_type: "algorithmic_trading",
+                allocation: 40000,
+                status: "PENDING",
+                return: 0,
+                result: null
+            }
+        ];
+
+        let currentUser = null;
+        let filteredTrades = [...mockTrades];
+
+        // Authentication Functions
+        function login() {
+            const apiKey = document.getElementById('apiKeyInput').value;
+            if (apiKey) {
+                currentUser = {
+                    username: "demo_user",
+                    fund_name: "Demo Hedge Fund",
+                    api_key: apiKey
+                };
+                showMainApp();
+            } else {
+                alert("Please enter your API key");
+            }
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+
+        function register() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const fundName = document.getElementById('fundName').value;
+            const fundDesc = document.getElementById('fundDesc').value;
+
+            if (username && email && fundName) {
+                const apiKey = 'ah_' + Math.random().toString(36).substr(2, 32);
+                document.getElementById('generatedApiKey').textContent = apiKey;
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('apiKeyDisplay').classList.remove('hidden');
+
+                currentUser = {
+                    username: username,
+                    fund_name: fundName,
+                    api_key: apiKey
+                };
+            } else {
+                alert("Please fill in all required fields");
+            }
+        }
+
+        function loginWithNewKey() {
+            showMainApp();
+        }
+
+        function showMainApp() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('fundNameDisplay').textContent = currentUser.fund_name;
+            initDashboard();
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('apiKeyInput').value = '';
+        }
+
+        // Navigation
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+            // Show selected page
+            document.getElementById(pageName + 'Page').classList.remove('hidden');
+
+            // Add active class to clicked nav item
+            event.target.closest('.nav-item').classList.add('active');
+
+            // Initialize page content
+            if (pageName === 'trades') {
+                renderAllTrades();
+            } else if (pageName === 'analytics') {
+                initAnalytics();
+            }
+        }
+
+        // Dashboard Functions
+        function initDashboard() {
+            renderRecentTrades();
+            initAllocationChart();
+            initPerformanceChart();
+        }
+
+        function renderRecentTrades() {
+            const tbody = document.getElementById('recentTradesTable');
+            const recentTrades = mockTrades.slice(0, 5);
+
+            tbody.innerHTML = recentTrades.map(trade => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm">${new Date(trade.created_at).toLocaleDateString()}</td>
+                    <td class="px-4 py-3 text-sm font-mono">${trade.stocks.join(', ')}</td>
+                    <td class="px-4 py-3 text-sm">${trade.strategy_type.replace('_', ' ')}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="status-badge status-${trade.status.toLowerCase()}">${trade.status}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm font-semibold ${trade.return >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        ${trade.return > 0 ? '+' : ''}${trade.return}%
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <button onclick="viewTradeDetail('${trade.id}')" class="text-indigo-600 hover:underline">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function initAllocationChart() {
+            const ctx = document.getElementById('allocationChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'Others'],
+                    datasets: [{
+                        data: [450000, 380000, 520000, 340000, 280000, 430000],
+                        backgroundColor: [
+                            '#4f46e5',
+                            '#7c3aed',
+                            '#2563eb',
+                            '#0891b2',
+                            '#059669',
+                            '#d97706'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function initPerformanceChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [{
+                        label: 'Portfolio Return (%)',
+                        data: [2.3, 5.8, 8.1, 12.3],
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Trade Functions
+        function submitTrade(event) {
+            event.preventDefault();
+
+            const stocks = document.getElementById('stockSymbols').value.split(',').map(s => s.trim().toUpperCase());
+            const task = document.getElementById('tradingTask').value;
+            const allocation = document.getElementById('allocation').value;
+            const strategyType = document.getElementById('strategyType').value;
+            const riskLevel = document.getElementById('riskLevel').value;
+
+            const newTrade = {
+                id: `trade_${String(mockTrades.length + 1).padStart(3, '0')}`,
+                created_at: new Date().toISOString(),
+                stocks: stocks,
+                strategy_type: strategyType,
+                allocation: parseInt(allocation),
+                status: "PENDING",
+                return: 0,
+                result: null
+            };
+
+            mockTrades.unshift(newTrade);
+
+            alert(`Trade submitted successfully!\n\nTrade ID: ${newTrade.id}\nStocks: ${stocks.join(', ')}\nAllocation: $${allocation}\n\nThe AI agents are now analyzing your trade...`);
+
+            resetTradeForm();
+            showPage('trades');
+        }
+
+        function resetTradeForm() {
+            document.getElementById('stockSymbols').value = '';
+            document.getElementById('tradingTask').value = '';
+            document.getElementById('allocation').value = '10000';
+            document.getElementById('strategyType').value = 'swing_trading';
+            document.getElementById('riskLevel').value = '5';
+            document.getElementById('riskLevelDisplay').textContent = '5';
+        }
+
+        function renderAllTrades() {
+            const tbody = document.getElementById('allTradesTable');
+
+            tbody.innerHTML = filteredTrades.map(trade => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm font-mono">${trade.id}</td>
+                    <td class="px-4 py-3 text-sm">${new Date(trade.created_at).toLocaleDateString()}</td>
+                    <td class="px-4 py-3 text-sm font-mono">${trade.stocks.join(', ')}</td>
+                    <td class="px-4 py-3 text-sm">${trade.strategy_type.replace('_', ' ')}</td>
+                    <td class="px-4 py-3 text-sm">$${trade.allocation.toLocaleString()}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="status-badge status-${trade.status.toLowerCase()}">${trade.status}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm font-semibold ${trade.return >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        ${trade.status === 'PENDING' ? 'N/A' : (trade.return > 0 ? '+' : '') + trade.return + '%'}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <button onclick="viewTradeDetail('${trade.id}')" class="text-indigo-600 hover:underline">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterTrades() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const stockSearch = document.getElementById('stockSearch').value.toUpperCase();
+
+            filteredTrades = mockTrades.filter(trade => {
+                const statusMatch = statusFilter === 'all' || trade.status === statusFilter;
+                const stockMatch = !stockSearch || trade.stocks.some(stock => stock.includes(stockSearch));
+                return statusMatch && stockMatch;
+            });
+
+            renderAllTrades();
+        }
+
+        function viewTradeDetail(tradeId) {
+            const trade = mockTrades.find(t => t.id === tradeId);
+            if (!trade) return;
+
+            document.getElementById('modalTradeId').textContent = `Trade ID: ${trade.id} | ${new Date(trade.created_at).toLocaleString()}`;
+
+            let content = `
+                <div class="mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-sm text-gray-500">Stocks</div>
+                            <div class="font-semibold text-lg">${trade.stocks.join(', ')}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Strategy</div>
+                            <div class="font-semibold text-lg">${trade.strategy_type.replace('_', ' ')}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Allocation</div>
+                            <div class="font-semibold text-lg">$${trade.allocation.toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Status</div>
+                            <div class="mt-1"><span class="status-badge status-${trade.status.toLowerCase()}">${trade.status}</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (trade.result) {
+                content += `
+                    <div class="space-y-4">
+                        <div class="card agent-card">
+                            <h3 class="font-semibold text-lg mb-2 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+                                </svg>
+                                Director's Thesis
+                            </h3>
+                            <p class="text-gray-700">${trade.result.director_thesis}</p>
+                        </div>
+
+                        <div class="card agent-card">
+                            <h3 class="font-semibold text-lg mb-3 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                                Quantitative Analysis
+                            </h3>
+                            <div class="grid grid-cols-3 gap-4 mb-3">
+                                <div>
+                                    <div class="text-sm text-gray-500">Technical Score</div>
+                                    <div class="font-bold text-lg">${(trade.result.quant_analysis.technical_score * 100).toFixed(0)}%</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Volume Score</div>
+                                    <div class="font-bold text-lg">${(trade.result.quant_analysis.volume_score * 100).toFixed(0)}%</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Trend Strength</div>
+                                    <div class="font-bold text-lg">${(trade.result.quant_analysis.trend_strength * 100).toFixed(0)}%</div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded text-sm">
+                                <div class="mb-2"><strong>Indicators:</strong></div>
+                                <div>RSI: ${trade.result.quant_analysis.indicators.RSI}</div>
+                                <div>MACD: ${trade.result.quant_analysis.indicators.MACD}</div>
+                                <div>Moving Average: ${trade.result.quant_analysis.indicators.Moving_Average}</div>
+                            </div>
+                        </div>
+
+                        <div class="card agent-card">
+                            <h3 class="font-semibold text-lg mb-3 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                </svg>
+                                Sentiment Analysis
+                            </h3>
+                            <div class="grid grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <div class="text-sm text-gray-500">Overall Sentiment</div>
+                                    <div class="font-bold text-lg">${(trade.result.sentiment_analysis.sentiment_score * 100).toFixed(0)}%</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">News Sentiment</div>
+                                    <div class="font-bold text-lg">${trade.result.sentiment_analysis.news_sentiment}</div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded text-sm">
+                                <div class="mb-1"><strong>Key Themes:</strong></div>
+                                <div class="flex flex-wrap gap-2">
+                                    ${trade.result.sentiment_analysis.key_themes.map(theme =>
+                                        `<span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs">${theme}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card agent-card">
+                            <h3 class="font-semibold text-lg mb-3 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                Risk Assessment
+                            </h3>
+                            <div class="grid grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <div class="text-sm text-gray-500">Risk Score</div>
+                                    <div class="font-bold text-lg">${(trade.result.risk_assessment.risk_score * 100).toFixed(0)}%</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Max Drawdown</div>
+                                    <div class="font-bold text-lg">${(trade.result.risk_assessment.max_drawdown * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded text-sm">
+                                <div class="mb-1"><strong>Position Size:</strong> ${trade.result.risk_assessment.position_size_recommendation}</div>
+                                <div class="mt-2"><strong>Risk Factors:</strong></div>
+                                <ul class="list-disc list-inside ml-2">
+                                    ${trade.result.risk_assessment.risk_factors.map(factor => `<li>${factor}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="card agent-card">
+                            <h3 class="font-semibold text-lg mb-3 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>
+                                </svg>
+                                Execution Order
+                            </h3>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <div class="text-sm text-gray-500">Action</div>
+                                    <div class="font-bold text-lg text-green-600">${trade.result.execution_order.action}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Entry Price</div>
+                                    <div class="font-bold text-lg">$${trade.result.execution_order.entry_price}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Target Price</div>
+                                    <div class="font-bold text-lg text-green-600">$${trade.result.execution_order.target_price}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Stop Loss</div>
+                                    <div class="font-bold text-lg text-red-600">$${trade.result.execution_order.stop_loss}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Order Type</div>
+                                    <div class="font-bold text-lg">${trade.result.execution_order.order_type}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-500">Time Constraint</div>
+                                    <div class="font-bold text-lg">${trade.result.execution_order.time_constraint}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card bg-indigo-50 border-indigo-200 border">
+                            <h3 class="font-semibold text-lg mb-2 flex items-center text-indigo-900">
+                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                Final Decision
+                            </h3>
+                            <p class="text-indigo-900 font-medium">${trade.result.final_decision}</p>
+                        </div>
+
+                        ${trade.return !== 0 ? `
+                        <div class="card bg-${trade.return >= 0 ? 'green' : 'red'}-50 border-${trade.return >= 0 ? 'green' : 'red'}-200 border">
+                            <h3 class="font-semibold text-lg mb-2 text-${trade.return >= 0 ? 'green' : 'red'}-900">Performance</h3>
+                            <div class="text-3xl font-bold text-${trade.return >= 0 ? 'green' : 'red'}-600">
+                                ${trade.return > 0 ? '+' : ''}${trade.return}% Return
+                            </div>
+                            <div class="text-sm text-${trade.return >= 0 ? 'green' : 'red'}-700 mt-1">
+                                ${trade.return >= 0 ? 'Profit' : 'Loss'}: $${(trade.allocation * trade.return / 100).toLocaleString()}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                content += `
+                    <div class="text-center py-12">
+                        <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h3 class="text-xl font-semibold mb-2">Analysis in Progress</h3>
+                        <p class="text-gray-600">The AI agents are currently analyzing this trade. Results will be available shortly.</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('tradeDetailContent').innerHTML = content;
+            document.getElementById('tradeDetailModal').classList.remove('hidden');
+        }
+
+        function closeTradeDetail(event) {
+            if (!event || event.target.id === 'tradeDetailModal') {
+                document.getElementById('tradeDetailModal').classList.add('hidden');
+            }
+        }
+
+        // Analytics Functions
+        function initAnalytics() {
+            initStrategyChart();
+        }
+
+        function updateAnalytics() {
+            // Mock function - would update charts based on selected period
+            console.log('Analytics updated for period:', document.getElementById('analyticsPeriod').value);
+        }
+
+        function initStrategyChart() {
+            const ctx = document.getElementById('strategyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Swing Trading', 'Day Trading', 'Position Trading', 'Algorithmic'],
+                    datasets: [{
+                        label: 'Average Return (%)',
+                        data: [11.2, 6.8, 18.5, 13.9],
+                        backgroundColor: [
+                            '#4f46e5',
+                            '#7c3aed',
+                            '#2563eb',
+                            '#0891b2'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-login for demo purposes (remove in production)
+            // currentUser = { username: "demo_user", fund_name: "Demo Hedge Fund", api_key: "demo_key" };
+            // showMainApp();
+        });
+    </script>
+</body>
+</html>
