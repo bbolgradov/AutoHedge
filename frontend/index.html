@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoHedge - AI-Powered Hedge Fund Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+        }
+        .agent-card {
+            border-left: 4px solid #667eea;
+            margin-bottom: 1rem;
+        }
+        .metric-card {
+            text-align: center;
+            padding: 1rem;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .status-completed { background-color: #d1fae5; color: #065f46; }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-executing { background-color: #dbeafe; color: #1e40af; }
+        .status-failed { background-color: #fee2e2; color: #991b1b; }
+        .sidebar {
+            width: 250px;
+            background: #1f2937;
+            min-height: 100vh;
+            color: white;
+        }
+        .nav-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .nav-item:hover {
+            background: #374151;
+        }
+        .nav-item.active {
+            background: #4f46e5;
+        }
+        .hidden {
+            display: none;
+        }
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #4338ca;
+        }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #1f2937;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: #d1d5db;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-top: 0.25rem;
+        }
+        .label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4f46e5;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .loading-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="spinner" style="width: 40px; height: 40px; margin: 0 auto 1rem;"></div>
+            <div id="loadingMessage">Processing...</div>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center gradient-bg">
+        <div class="card max-w-md w-full">
+            <h1 class="text-3xl font-bold text-center mb-6">AutoHedge</h1>
+            <p class="text-gray-600 text-center mb-6">AI-Powered Hedge Fund Management</p>
+
+            <div id="loginError" class="error-message hidden"></div>
+
+            <div id="loginForm">
+                <h2 class="text-xl font-semibold mb-4">Login</h2>
+                <div class="mb-4">
+                    <label class="label">API Key</label>
+                    <input type="text" id="apiKeyInput" class="input-field" placeholder="Enter your API key">
+                </div>
+                <button onclick="login()" class="btn btn-primary w-full mb-3">Login</button>
+                <button onclick="showRegister()" class="btn btn-secondary w-full">Create New Account</button>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <h2 class="text-xl font-semibold mb-4">Create Account</h2>
+                <div id="registerError" class="error-message hidden"></div>
+                <div class="mb-4">
+                    <label class="label">Username</label>
+                    <input type="text" id="username" class="input-field" placeholder="johndoe" required>
+                </div>
+                <div class="mb-4">
+                    <label class="label">Email</label>
+                    <input type="email" id="email" class="input-field" placeholder="john@example.com" required>
+                </div>
+                <div class="mb-4">
+                    <label class="label">Fund Name</label>
+                    <input type="text" id="fundName" class="input-field" placeholder="My Hedge Fund" required>
+                </div>
+                <div class="mb-4">
+                    <label class="label">Fund Description (Optional)</label>
+                    <textarea id="fundDesc" class="input-field" rows="3" placeholder="Brief description of your fund"></textarea>
+                </div>
+                <button onclick="register()" class="btn btn-primary w-full mb-3">Create Account</button>
+                <button onclick="showLogin()" class="btn btn-secondary w-full">Back to Login</button>
+            </div>
+
+            <div id="apiKeyDisplay" class="hidden">
+                <h2 class="text-xl font-semibold mb-4 text-green-600">Account Created!</h2>
+                <p class="mb-2">Your API Key:</p>
+                <div class="bg-gray-100 p-3 rounded mb-4 font-mono text-sm break-all" id="generatedApiKey"></div>
+                <p class="text-sm text-gray-600 mb-4">Save this API key securely. You'll need it to access your account.</p>
+                <button onclick="loginWithNewKey()" class="btn btn-primary w-full">Continue to Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden flex">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="p-6 border-b border-gray-700">
+                <h1 class="text-xl font-bold">AutoHedge</h1>
+                <p class="text-sm text-gray-400 mt-1" id="fundNameDisplay"></p>
+                <p class="text-xs text-gray-500 mt-1" id="usernameDisplay"></p>
+            </div>
+            <nav class="p-4">
+                <div class="nav-item active" onclick="showPage('dashboard')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    Dashboard
+                </div>
+                <div class="nav-item" onclick="showPage('newTrade')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    New Trade
+                </div>
+                <div class="nav-item" onclick="showPage('trades')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Trade History
+                </div>
+                <div class="nav-item" onclick="showPage('analytics')">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    Analytics
+                </div>
+            </nav>
+            <div class="p-4 border-t border-gray-700 absolute bottom-0 w-full">
+                <button onclick="logout()" class="btn btn-secondary w-full text-sm">Logout</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-y-auto">
+            <!-- Dashboard Page -->
+            <div id="dashboardPage" class="page">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Dashboard</h2>
+                    <p class="text-gray-600">Welcome back! Here's your trading overview.</p>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-4 gap-4 mb-8" id="dashboardMetrics">
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Total Trades</div>
+                        <div class="text-3xl font-bold text-indigo-600" id="metricTotalTrades">-</div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Success Rate</div>
+                        <div class="text-3xl font-bold text-green-600" id="metricSuccessRate">-</div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Avg Return</div>
+                        <div class="text-3xl font-bold text-blue-600" id="metricAvgReturn">-</div>
+                    </div>
+                    <div class="card metric-card">
+                        <div class="text-gray-500 text-sm mb-1">Total Allocation</div>
+                        <div class="text-3xl font-bold text-purple-600" id="metricTotalAllocation">-</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="card">
+                        <h3 class="text-lg font-semibold mb-4">Portfolio Allocation</h3>
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+                        <div id="recentActivityContent" class="text-sm text-gray-500">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- Recent Trades -->
+                <div class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">Recent Trades</h3>
+                        <button onclick="showPage('trades')" class="text-indigo-600 text-sm hover:underline">View All</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Date</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Stocks</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Strategy</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Status</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTradesTable">
+                                <tr><td colspan="5" class="text-center py-4 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Trade Page -->
+            <div id="newTradePage" class="page hidden">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Create New Trade</h2>
+                    <p class="text-gray-600">Submit a new trading task for AI analysis</p>
+                </div>
+
+                <div class="card max-w-3xl">
+                    <div id="tradeError" class="error-message hidden"></div>
+                    <form onsubmit="submitTrade(event)" id="tradeForm">
+                        <div class="mb-6">
+                            <label class="label">Stock Symbols</label>
+                            <input type="text" id="stockSymbols" class="input-field" placeholder="AAPL, MSFT, GOOGL" required>
+                            <p class="text-sm text-gray-500 mt-1">Comma-separated list of stock symbols</p>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Trading Task / Strategy</label>
+                            <textarea id="tradingTask" class="input-field" rows="4" placeholder="Describe your trading strategy or objective..." required></textarea>
+                            <p class="text-sm text-gray-500 mt-1">Describe what you want the AI agents to analyze</p>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Capital Allocation ($)</label>
+                            <input type="number" id="allocation" class="input-field" value="10000" min="1000" step="1000" required>
+                            <div class="flex justify-between text-sm text-gray-500 mt-1">
+                                <span>$1,000</span>
+                                <span>$1,000,000+</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Strategy Type</label>
+                            <select id="strategyType" class="input-field" required>
+                                <option value="swing_trading">Swing Trading</option>
+                                <option value="day_trading">Day Trading</option>
+                                <option value="position_trading">Position Trading</option>
+                                <option value="algorithmic_trading">Algorithmic Trading</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="label">Risk Level: <span id="riskLevelDisplay">5</span></label>
+                            <input type="range" id="riskLevel" class="w-full" min="1" max="10" value="5" oninput="document.getElementById('riskLevelDisplay').textContent = this.value">
+                            <div class="flex justify-between text-sm text-gray-500 mt-1">
+                                <span>Conservative (1)</span>
+                                <span>Aggressive (10)</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <button type="submit" id="submitTradeBtn" class="btn btn-primary flex-1">Submit for Analysis</button>
+                            <button type="button" onclick="resetTradeForm()" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Trades Page -->
+            <div id="tradesPage" class="page hidden">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Trade History</h2>
+                    <p class="text-gray-600">View all your trading analyses</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="card mb-6">
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="label">Filter by Status</label>
+                            <select id="statusFilter" class="input-field" onchange="loadTrades()">
+                                <option value="">All Statuses</option>
+                                <option value="COMPLETED">Completed</option>
+                                <option value="PENDING">Pending</option>
+                                <option value="EXECUTING">Executing</option>
+                                <option value="FAILED">Failed</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="label">Limit</label>
+                            <select id="limitFilter" class="input-field" onchange="loadTrades()">
+                                <option value="10">10 trades</option>
+                                <option value="25" selected>25 trades</option>
+                                <option value="50">50 trades</option>
+                                <option value="100">100 trades</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trades Table -->
+                <div class="card">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">ID</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Date</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Stocks</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Strategy</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Allocation</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Status</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allTradesTable">
+                                <tr><td colspan="7" class="text-center py-4 text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Page -->
+            <div id="analyticsPage" class="page hidden">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold mb-2">Analytics</h2>
+                    <p class="text-gray-600">Detailed performance metrics and insights</p>
+                </div>
+
+                <!-- Time Period Selector -->
+                <div class="card mb-6">
+                    <label class="label">Time Period</label>
+                    <select id="analyticsPeriod" class="input-field max-w-xs" onchange="loadAnalytics()">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                        <option value="365">Last Year</option>
+                    </select>
+                </div>
+
+                <!-- Detailed Metrics -->
+                <div class="grid grid-cols-3 gap-6 mb-8" id="analyticsMetrics">
+                    <div class="card">
+                        <h3 class="text-sm text-gray-500 mb-2">Total Return</h3>
+                        <div class="text-3xl font-bold text-green-600" id="analyticsReturn">-</div>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm text-gray-500 mb-2">Total Trades</h3>
+                        <div class="text-3xl font-bold text-blue-600" id="analyticsTotalTrades">-</div>
+                    </div>
+                    <div class="card">
+                        <h3 class="text-sm text-gray-500 mb-2">Success Rate</h3>
+                        <div class="text-3xl font-bold text-purple-600" id="analyticsSuccessRate">-</div>
+                    </div>
+                </div>
+
+                <!-- Top Performing Stocks -->
+                <div class="card mb-6">
+                    <h3 class="text-lg font-semibold mb-4">Top Performing Stocks</h3>
+                    <div id="topStocksContent" class="space-y-3">
+                        <p class="text-gray-500">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trade Detail Modal -->
+            <div id="tradeDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-8" onclick="closeTradeDetail(event)">
+                <div class="bg-white rounded-lg max-w-5xl w-full max-h-screen overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="p-6 border-b sticky top-0 bg-white">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h2 class="text-2xl font-bold">Trade Analysis</h2>
+                                <p class="text-gray-600 text-sm" id="modalTradeId"></p>
+                            </div>
+                            <button onclick="closeTradeDetail()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6" id="tradeDetailContent">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        let currentUser = null;
+        let allTrades = [];
+        let analyticsData = null;
+        let pollingInterval = null;
+        let allocationChart = null;
+
+        // API Helper Functions
+        async function apiRequest(endpoint, options = {}) {
+            const url = `${API_BASE_URL}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            if (currentUser && currentUser.api_key) {
+                headers['X-API-Key'] = currentUser.api_key;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+                    throw new Error(error.detail || `HTTP ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('API Request failed:', error);
+                throw error;
+            }
+        }
+
+        function showLoading(message = 'Processing...') {
+            document.getElementById('loadingMessage').textContent = message;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 5000);
+        }
+
+        // Authentication Functions
+        async function register() {
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const fundName = document.getElementById('fundName').value.trim();
+            const fundDesc = document.getElementById('fundDesc').value.trim();
+
+            if (!username || !email || !fundName) {
+                showError('registerError', 'Please fill in all required fields');
+                return;
+            }
+
+            try {
+                showLoading('Creating account...');
+                const data = await apiRequest('/users', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        fund_name: fundName,
+                        fund_description: fundDesc || undefined
+                    })
+                });
+
+                hideLoading();
+                document.getElementById('generatedApiKey').textContent = data.api_key;
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('apiKeyDisplay').classList.remove('hidden');
+
+                currentUser = data;
+            } catch (error) {
+                hideLoading();
+                showError('registerError', error.message);
+            }
+        }
+
+        async function login() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                showError('loginError', 'Please enter your API key');
+                return;
+            }
+
+            try {
+                showLoading('Logging in...');
+                currentUser = { api_key: apiKey };
+
+                const userData = await apiRequest('/users/me');
+                currentUser = { ...userData, api_key: apiKey };
+
+                hideLoading();
+                showMainApp();
+            } catch (error) {
+                hideLoading();
+                currentUser = null;
+                showError('loginError', 'Invalid API key or server error: ' + error.message);
+            }
+        }
+
+        function loginWithNewKey() {
+            showMainApp();
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('apiKeyDisplay').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('fundNameDisplay').textContent = currentUser.fund_name || 'N/A';
+            document.getElementById('usernameDisplay').textContent = '@' + (currentUser.username || 'user');
+            initDashboard();
+            startPolling();
+        }
+
+        function logout() {
+            stopPolling();
+            currentUser = null;
+            allTrades = [];
+            analyticsData = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('apiKeyInput').value = '';
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('apiKeyDisplay').classList.add('hidden');
+        }
+
+        // Navigation
+        function showPage(pageName) {
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.getElementById(pageName + 'Page').classList.remove('hidden');
+            event.target.closest('.nav-item').classList.add('active');
+
+            if (pageName === 'trades') {
+                loadTrades();
+            } else if (pageName === 'analytics') {
+                loadAnalytics();
+            } else if (pageName === 'dashboard') {
+                initDashboard();
+            }
+        }
+
+        // Dashboard Functions
+        async function initDashboard() {
+            await Promise.all([
+                loadAnalytics(),
+                loadRecentTrades()
+            ]);
+        }
+
+        async function loadRecentTrades() {
+            try {
+                const trades = await apiRequest('/trades?limit=5');
+                allTrades = trades;
+                renderRecentTrades(trades);
+            } catch (error) {
+                console.error('Failed to load recent trades:', error);
+                document.getElementById('recentTradesTable').innerHTML =
+                    '<tr><td colspan="5" class="text-center py-4 text-red-500">Failed to load trades</td></tr>';
+            }
+        }
+
+        function renderRecentTrades(trades) {
+            const tbody = document.getElementById('recentTradesTable');
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No trades yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = trades.map(trade => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm">${new Date(trade.created_at).toLocaleDateString()}</td>
+                    <td class="px-4 py-3 text-sm font-mono">${(trade.stocks || []).join(', ') || 'N/A'}</td>
+                    <td class="px-4 py-3 text-sm">${(trade.strategy_type || 'N/A').replace(/_/g, ' ')}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="status-badge status-${trade.status.toLowerCase()}">${trade.status}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <button onclick="viewTradeDetail('${trade.id}')" class="text-indigo-600 hover:underline">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadAnalytics() {
+            const days = document.getElementById('analyticsPeriod')?.value || 30;
+            try {
+                analyticsData = await apiRequest(`/analytics/history?days=${days}`);
+                updateDashboardMetrics();
+                updateAnalyticsPage();
+                updateAllocationChart();
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+            }
+        }
+
+        function updateDashboardMetrics() {
+            if (!analyticsData) return;
+
+            document.getElementById('metricTotalTrades').textContent = analyticsData.total_trades || 0;
+            document.getElementById('metricSuccessRate').textContent =
+                analyticsData.success_rate ? (analyticsData.success_rate * 100).toFixed(1) + '%' : 'N/A';
+            document.getElementById('metricAvgReturn').textContent =
+                analyticsData.average_return ? (analyticsData.average_return > 0 ? '+' : '') + analyticsData.average_return.toFixed(2) + '%' : 'N/A';
+            document.getElementById('metricTotalAllocation').textContent =
+                analyticsData.total_allocation ? '$' + (analyticsData.total_allocation / 1000000).toFixed(2) + 'M' : 'N/A';
+
+            // Update recent activity
+            const activityEl = document.getElementById('recentActivityContent');
+            if (analyticsData.total_trades > 0) {
+                activityEl.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between"><span>Total Trades:</span><span class="font-semibold">${analyticsData.total_trades}</span></div>
+                        <div class="flex justify-between"><span>Success Rate:</span><span class="font-semibold">${(analyticsData.success_rate * 100).toFixed(1)}%</span></div>
+                        <div class="flex justify-between"><span>Avg Return:</span><span class="font-semibold">${analyticsData.average_return?.toFixed(2)}%</span></div>
+                        <div class="flex justify-between"><span>Total Allocation:</span><span class="font-semibold">$${(analyticsData.total_allocation || 0).toLocaleString()}</span></div>
+                    </div>
+                `;
+            } else {
+                activityEl.innerHTML = '<p class="text-gray-500">No trading activity yet</p>';
+            }
+        }
+
+        function updateAnalyticsPage() {
+            if (!analyticsData) return;
+
+            document.getElementById('analyticsReturn').textContent =
+                analyticsData.average_return ? (analyticsData.average_return > 0 ? '+' : '') + analyticsData.average_return.toFixed(2) + '%' : 'N/A';
+            document.getElementById('analyticsTotalTrades').textContent = analyticsData.total_trades || 0;
+            document.getElementById('analyticsSuccessRate').textContent =
+                analyticsData.success_rate ? (analyticsData.success_rate * 100).toFixed(1) + '%' : 'N/A';
+
+            // Top stocks
+            const topStocksEl = document.getElementById('topStocksContent');
+            if (analyticsData.top_stocks && analyticsData.top_stocks.length > 0) {
+                topStocksEl.innerHTML = analyticsData.top_stocks.slice(0, 5).map(stock => `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <div>
+                            <div class="font-semibold">${stock.stock || stock}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-500">${stock.count || 1} trades</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                topStocksEl.innerHTML = '<p class="text-gray-500">No stock data available</p>';
+            }
+        }
+
+        function updateAllocationChart() {
+            if (!analyticsData || !analyticsData.top_stocks || analyticsData.top_stocks.length === 0) {
+                return;
+            }
+
+            const ctx = document.getElementById('allocationChart');
+            if (!ctx) return;
+
+            if (allocationChart) {
+                allocationChart.destroy();
+            }
+
+            const topStocks = analyticsData.top_stocks.slice(0, 6);
+            const labels = topStocks.map(s => typeof s === 'string' ? s : s.stock);
+            const data = topStocks.map((s, i) => (topStocks.length - i) * 100);
+
+            allocationChart = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#4f46e5', '#7c3aed', '#2563eb',
+                            '#0891b2', '#059669', '#d97706'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Trade Functions
+        async function submitTrade(event) {
+            event.preventDefault();
+
+            const stocks = document.getElementById('stockSymbols').value.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+            const task = document.getElementById('tradingTask').value.trim();
+            const allocation = parseFloat(document.getElementById('allocation').value);
+            const strategyType = document.getElementById('strategyType').value;
+            const riskLevel = parseInt(document.getElementById('riskLevel').value);
+
+            if (stocks.length === 0) {
+                showError('tradeError', 'Please enter at least one stock symbol');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitTradeBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span>Submitting...';
+
+            try {
+                const tradeData = await apiRequest('/trades', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        stocks: stocks,
+                        task: task,
+                        allocation: allocation,
+                        strategy_type: strategyType,
+                        risk_level: riskLevel
+                    })
+                });
+
+                alert(`Trade submitted successfully!\n\nTrade ID: ${tradeData.id}\nStatus: ${tradeData.status}\n\nThe AI agents are now analyzing your trade. You can monitor progress in the Trade History.`);
+                resetTradeForm();
+                showPage('trades');
+            } catch (error) {
+                showError('tradeError', 'Failed to submit trade: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit for Analysis';
+            }
+        }
+
+        function resetTradeForm() {
+            document.getElementById('stockSymbols').value = '';
+            document.getElementById('tradingTask').value = '';
+            document.getElementById('allocation').value = '10000';
+            document.getElementById('strategyType').value = 'swing_trading';
+            document.getElementById('riskLevel').value = '5';
+            document.getElementById('riskLevelDisplay').textContent = '5';
+        }
+
+        async function loadTrades() {
+            const status = document.getElementById('statusFilter').value;
+            const limit = document.getElementById('limitFilter').value;
+
+            let endpoint = `/trades?limit=${limit}`;
+            if (status) {
+                endpoint += `&status=${status}`;
+            }
+
+            try {
+                const trades = await apiRequest(endpoint);
+                allTrades = trades;
+                renderAllTrades(trades);
+            } catch (error) {
+                console.error('Failed to load trades:', error);
+                document.getElementById('allTradesTable').innerHTML =
+                    '<tr><td colspan="7" class="text-center py-4 text-red-500">Failed to load trades</td></tr>';
+            }
+        }
+
+        function renderAllTrades(trades) {
+            const tbody = document.getElementById('allTradesTable');
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No trades found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = trades.map(trade => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm font-mono">${trade.id.substring(0, 8)}...</td>
+                    <td class="px-4 py-3 text-sm">${new Date(trade.created_at).toLocaleDateString()}</td>
+                    <td class="px-4 py-3 text-sm font-mono">${(trade.stocks || []).join(', ') || 'N/A'}</td>
+                    <td class="px-4 py-3 text-sm">${(trade.strategy_type || 'N/A').replace(/_/g, ' ')}</td>
+                    <td class="px-4 py-3 text-sm">$${(trade.allocation || 0).toLocaleString()}</td>
+                    <td class="px-4 py-3 text-sm">
+                        <span class="status-badge status-${trade.status.toLowerCase()}">${trade.status}</span>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <button onclick="viewTradeDetail('${trade.id}')" class="text-indigo-600 hover:underline">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function viewTradeDetail(tradeId) {
+            document.getElementById('tradeDetailModal').classList.remove('hidden');
+            document.getElementById('tradeDetailContent').innerHTML = '<p class="text-center py-4">Loading...</p>';
+
+            try {
+                const trade = await apiRequest(`/trades/${tradeId}`);
+                renderTradeDetail(trade);
+            } catch (error) {
+                document.getElementById('tradeDetailContent').innerHTML =
+                    `<p class="text-center py-4 text-red-500">Failed to load trade details: ${error.message}</p>`;
+            }
+        }
+
+        function renderTradeDetail(trade) {
+            document.getElementById('modalTradeId').textContent = `Trade ID: ${trade.id} | ${new Date(trade.created_at).toLocaleString()}`;
+
+            let content = `
+                <div class="mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-sm text-gray-500">Stocks</div>
+                            <div class="font-semibold text-lg">${(trade.stocks || []).join(', ') || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Strategy</div>
+                            <div class="font-semibold text-lg">${(trade.strategy_type || 'N/A').replace(/_/g, ' ')}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Allocation</div>
+                            <div class="font-semibold text-lg">$${(trade.allocation || 0).toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500">Status</div>
+                            <div class="mt-1"><span class="status-badge status-${trade.status.toLowerCase()}">${trade.status}</span></div>
+                        </div>
+                    </div>
+                    ${trade.task ? `
+                    <div class="mt-4">
+                        <div class="text-sm text-gray-500 mb-1">Trading Task</div>
+                        <div class="bg-gray-50 p-3 rounded text-sm">${trade.task}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+
+            if (trade.result && typeof trade.result === 'string') {
+                content += `
+                    <div class="card bg-gray-50">
+                        <h3 class="font-semibold text-lg mb-2">Analysis Result</h3>
+                        <pre class="whitespace-pre-wrap text-sm">${trade.result}</pre>
+                    </div>
+                `;
+            } else if (trade.result && typeof trade.result === 'object') {
+                content += '<div class="space-y-4">';
+                Object.entries(trade.result).forEach(([key, value]) => {
+                    content += `
+                        <div class="card agent-card">
+                            <h3 class="font-semibold text-lg mb-2">${key.replace(/_/g, ' ').toUpperCase()}</h3>
+                            <pre class="whitespace-pre-wrap text-sm">${JSON.stringify(value, null, 2)}</pre>
+                        </div>
+                    `;
+                });
+                content += '</div>';
+            } else if (trade.status === 'PENDING' || trade.status === 'EXECUTING') {
+                content += `
+                    <div class="text-center py-12">
+                        <div class="spinner" style="width: 40px; height: 40px; margin: 0 auto 1rem;"></div>
+                        <h3 class="text-xl font-semibold mb-2">Analysis in Progress</h3>
+                        <p class="text-gray-600">The AI agents are currently analyzing this trade. Results will be available shortly.</p>
+                        <p class="text-sm text-gray-500 mt-2">Status: ${trade.status}</p>
+                    </div>
+                `;
+            } else {
+                content += `
+                    <div class="text-center py-12">
+                        <p class="text-gray-600">No analysis results available yet.</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('tradeDetailContent').innerHTML = content;
+        }
+
+        function closeTradeDetail(event) {
+            if (!event || event.target.id === 'tradeDetailModal') {
+                document.getElementById('tradeDetailModal').classList.add('hidden');
+            }
+        }
+
+        // Polling for trade updates
+        function startPolling() {
+            pollingInterval = setInterval(async () => {
+                if (document.getElementById('dashboardPage').classList.contains('hidden') === false) {
+                    await loadRecentTrades();
+                    await loadAnalytics();
+                } else if (document.getElementById('tradesPage').classList.contains('hidden') === false) {
+                    await loadTrades();
+                }
+            }, 10000); // Poll every 10 seconds
+        }
+
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if there's a stored API key (optional)
+            const storedApiKey = localStorage.getItem('autohedge_api_key');
+            if (storedApiKey) {
+                document.getElementById('apiKeyInput').value = storedApiKey;
+            }
+        });
+
+        // Save API key on successful login (optional)
+        window.addEventListener('beforeunload', function() {
+            if (currentUser && currentUser.api_key) {
+                localStorage.setItem('autohedge_api_key', currentUser.api_key);
+            }
+        });
+    </script>
+</body>
+</html>
